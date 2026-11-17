@@ -108,6 +108,13 @@ const dancers=new Map(), pending=[], queue=[], processed=new Set();const humans 
 const guestLayer = $('guest-labels');
 const recentGuest = $('recent-guest');
 let arrivalUntil = 0;
+let cameraGuestId, cameraGuestUntil = 0;
+const cameraTarget = new THREE.Vector3(0, 1.8, 0);
+const cameraDestination = new THREE.Vector3();
+function focusGuest(userId) {
+  cameraGuestId = userId;
+  cameraGuestUntil = serverNow() + 4200;
+}
 let stageWidth = 1, stageHeight = 1;
 const namePosition = new THREE.Vector3();
 let nextArrivalId, nextArrivalAt = 0;
@@ -193,16 +200,10 @@ function showSpeech(event) {
     return;
   }
   let dancer = dancers.get(event.userId);
-  if (!dancer) {
-    speechPending.set(event.userId, event);
-    if (speechPending.size > 100) speechPending.delete(speechPending.keys().next().value);
-    const name = document.createElement('strong');
-    name.textContent = event.name || 'Көрермен';
-    recentGuest.replaceChildren(name, document.createTextNode(' · ' + text.slice(0,100)));
-    recentGuest.hidden = false;
-    arrivalUntil = until;
-    return;
-  }
+  if (!dancer) dancer = addDancer({...event, at:serverNow()});
+  if (!dancer) return;
+  speechPending.delete(event.userId);
+  dancer.until = Math.max(dancer.until, until + 1000);
   if (event.appearance && event.appearance !== dancer.appearance) {
     dancer = addDancer({...event, name:dancer.name, until:dancer.until});
   }
@@ -370,7 +371,7 @@ function addDancer(event) {
 }
 function removeDancer(id){const d=dancers.get(id);clearSpeech(d);scene.remove(d.root);d.mixer.stopAllAction();d.mixer.uncacheRoot(d.body);d.label.remove();d.ring.geometry.dispose();d.body.traverse(mesh=>{if(mesh.isMesh) for(const material of [mesh.material].flat())material.dispose()});dancers.delete(id)}
 function receive(event, quiet = false) {
-  if (event.type !== 'gift') return;
+  if (event.type !== 'gift' && event.type !== 'join') return;
   if (!model) {
     if (pending.length >= 150) pending.shift();
     pending.push({...event, at:event.at || serverNow(), quiet});
@@ -379,10 +380,16 @@ function receive(event, quiet = false) {
   if (processed.has(event.id)) return;
   processed.add(event.id);
   if (processed.size > 3000) processed.delete(processed.values().next().value);
+  const existing = dancers.has(event.userId);
   const dancer = addDancer(event);
-  if (!dancer || event.type === 'join') return;
+  if (!dancer) return;
+  if (event.type === 'join' && !quiet && !existing) {
+    announceEntrance(event);
+    focusGuest(event.userId);
+  }
   const comment = speechPending.get(event.userId);
   if (comment) { speechPending.delete(event.userId); showSpeech(comment); }
+  if (event.type === 'join') return;
   if (event.action === 'duet') {
     const at = event.at || serverNow();
     if (at + DUET_WAIT_MS > serverNow() && !duet?.ids.includes(event.userId)) {
@@ -773,8 +780,18 @@ function render(timestamp) {
     }
     animateGuest(dancer,dt,time,duet?.ids.indexOf(id) ?? -1);
   }
-  camera.position.x = angle === 0 ? Math.sin(time * .09) * .7 : angle === 1 ? 9 : -9;
-  camera.lookAt(0,1.8,0);
+  const focused = now < cameraGuestUntil && dancers.get(cameraGuestId);
+  const blend = 1 - Math.exp(-dt * 3);
+  if (focused) {
+    cameraDestination.copy(focused.root.position).add(new THREE.Vector3(0, 3.8, camera.aspect < .8 ? 12 : 9));
+    namePosition.copy(focused.root.position).y += 2;
+  } else {
+    cameraDestination.set(angle === 0 ? Math.sin(time * .09) * .7 : angle === 1 ? 9 : -9, 6, camera.aspect < .8 ? 26 : 19);
+    namePosition.set(0, 1.8, 0);
+  }
+  camera.position.lerp(cameraDestination, blend);
+  cameraTarget.lerp(namePosition, blend);
+  camera.lookAt(cameraTarget);
   positionGuestNames(now);
   const count = String(dancers.size);
   if ($('count').textContent !== count) $('count').textContent = count;
@@ -856,6 +873,11 @@ $('preview').onclick = () => {
   const appearance = action === 'duet' ? (demoIndex % 2 ? 'man' : 'woman') : undefined;
   receive({type:'gift',gift,action,appearance,coins:Number(selected)||0,id,userId:id,name:'@qonaq_' + demoIndex,count:1,total:1,demo:true});
 };
+$('preview-join').onclick = () => {
+  demoIndex++;
+  const userId = 'demo-' + demoIndex;
+  receive({type:'join', id:'join:' + userId, userId, name:'@qonaq_' + demoIndex, at:serverNow()});
+};
 $('preview-chat').onclick = () => showSpeech({userId:demoIndex ? 'demo-' + demoIndex : 'viewer-demo', name:'Қонақ', message:'Сәлем, достар!'});
 function startFireworks(demo = false) {
   fireworksUntil = serverNow() + 6000;
@@ -883,27 +905,20 @@ function openSocket() {
         break;
       case 'gift': receive(data); break;
       case 'chat': showSpeech(data); break;
-      case 'join': {
-        const existing = dancers.get(data.userId);
-        if (!existing || (data.appearance && data.appearance !== existing.appearance)) {
-          receive({...data,id:'join:' + data.userId + ':' + data.at},true);
-          if (!existing) announceEntrance(data);
-        }
-        break;
-      }
+      case 'join': receive({...data,id:'join:' + data.userId + ':' + data.at}); break;
       case 'likes': updateLikes(data.count,true); break;
       case 'history': {
         updateLikes(data.likes,false);
         const recent = new Map();
 
         const cutoff = serverNow() - DANCE_MS;
-        for (const gift of data.gifts) {
+        for (const gift of [...(data.viewers || []), ...data.gifts].sort((a,b)=>a.at-b.at)) {
           if (gift.at <= cutoff) continue;
           if (recent.get(gift.userId)?.at > gift.at) continue;
           recent.delete(gift.userId);
           recent.set(gift.userId,gift);
         }
-        for (const gift of [...recent.values()].sort((a,b)=>a.at-b.at).slice(-MAX_DANCERS)) receive(gift,true);
+        for (const gift of [...recent.values()].sort((a,b)=>a.at-b.at).slice(-MAX_DANCERS)) receive({...gift,id:gift.id || 'join:' + gift.userId + ':' + gift.at},true);
         break;
       }
       case 'reset':
@@ -912,7 +927,8 @@ function openSocket() {
         pending.length = 0;
         recentGuest.hidden = true;
         nextArrivalAt = arrivalUntil = 0;
-        nextArrivalId = undefined;
+        nextArrivalId = cameraGuestId = undefined;
+        cameraGuestUntil = 0;
         speechPending.clear();
         queue.length = 0;
         lastLikeGoal = totalLikes = fireworksUntil = galaxyUntil = discoUntil = shashuUntil = 0;

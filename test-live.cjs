@@ -18,7 +18,7 @@ test('switching LIVE accounts routes gifts and ignores stale connections', async
   }
   const dependencies = {
     express, ws:{WebSocketServer:SocketServer}, 'node:crypto':require('node:crypto'),
-    'tiktok-live-connector':{TikTokLiveConnection:Connection, WebcastEvent:{CHAT:'chat', LIKE:'like', GIFT:'gift'}}
+    'tiktok-live-connector':{TikTokLiveConnection:Connection, WebcastEvent:{CHAT:'chat', LIKE:'like', GIFT:'gift', MEMBER:'member'}}
   };
   const context = vm.createContext({require:name=>dependencies[name], process:{env:{}}, Buffer, console,
     setTimeout, clearTimeout, __dirname});
@@ -29,6 +29,15 @@ test('switching LIVE accounts routes gifts and ignores stale connections', async
   };
   const rose = {user:{idStr:'123', displayId:'viewer'}, giftId:5655, gift:{name:'Rose', diamondCount:1}, groupId:'batch', repeatCount:1};
   await connect('first.account');
+  connections[0].emit('member', {user:{idStr:'123', nickname:'Алихан'}});
+  assert.equal(messages.at(-1).type, 'join');
+  assert.equal(messages.at(-1).name, 'Алихан');
+  assert.equal(messages.at(-1).userId, '123');
+  connections[0].emit('member', {});
+  assert.equal(messages.at(-1).type, 'join', 'missing viewer is ignored');
+  connections[0].emit('chat', {user:{idStr:'123'}, comment:'Сәлем!'});
+  assert.equal(messages.at(-1).message, 'Сәлем!');
+  assert.equal(messages.at(-1).userId, '123', 'chat uses the same identity as entry');
   connections[0].emit('gift', rose);
   await connect('@erll.04');
   assert.equal(connections[1].username,'erll.04');
@@ -38,6 +47,9 @@ test('switching LIVE accounts routes gifts and ignores stale connections', async
   assert.ok(Number.isFinite(messages.filter(m=>m.type==='gift').at(-1).serverTime));
   connections[1].emit('gift', rose);
   assert.equal(messages.filter(m=>m.type==='gift').length,2,'duplicate combo does not add another guest');
+  const joins = messages.filter(m=>m.type==='join').length;
+  connections[0].emit('member', {user:{idStr:'old-viewer'}});
+  assert.equal(messages.filter(m=>m.type==='join').length, joins, 'old connection cannot add viewers');
   connections[0].emit('gift', {...rose, groupId:'late'});
   assert.equal(messages.filter(m=>m.type==='gift').length,2,'old account cannot deliver gifts');
   connections[1].emit('error',new Error('test connection error'));
@@ -69,4 +81,32 @@ test('gift lifetime uses server time despite wrong or changed computer clock', (
     tick += 1001;
     assert.ok(1700000000000 + 60000 < vm.runInContext('serverNow()',ctx));
   }
+});
+
+
+test('entry creates a named dancer and focuses once; history restores quietly', () => {
+  const source = readFileSync('club.js','utf8');
+  const receive = source.slice(source.indexOf('function receive('), source.indexOf('function updateDuet('));
+  const dancers = new Map(), focused = [], announced = [];
+  const ctx = vm.createContext({
+    model:true, processed:new Set(), dancers, pending:[], speechPending:new Map(),
+    serverNow:()=>1000,
+    addDancer:event=>{const dancer = {name:event.name}; dancers.set(event.userId,dancer); return dancer;},
+    announceEntrance:event=>announced.push(event.userId), focusGuest:id=>focused.push(id)
+  });
+  vm.runInContext(receive, ctx);
+  vm.runInContext("receive({type:'join',userId:'1',id:'entry-1',name:'Айша'})",ctx);
+  assert.equal(dancers.get('1').name,'Айша');
+  assert.deepEqual(focused,['1']);
+  vm.runInContext("receive({type:'join',userId:'1',id:'entry-2',name:'Айша'})",ctx);
+  vm.runInContext("receive({type:'join',userId:'2',id:'history-2',name:'Әли'},true)",ctx);
+  assert.equal(dancers.size,2);
+  assert.deepEqual(announced,['1']);
+  assert.deepEqual(focused,['1']);
+  vm.runInContext('model = false',ctx);
+  vm.runInContext("receive({type:'join',userId:'3',id:'entry-3',name:'Дана'})",ctx);
+  assert.equal(ctx.pending.length,1, 'entry waits for avatar loading');
+  vm.runInContext('model = true; receive(pending.shift())',ctx);
+  assert.equal(dancers.get('3').name,'Дана');
+  assert.deepEqual(focused,['1','3']);
 });

@@ -21,7 +21,7 @@ function authorizeAdmin(req, res, next) {
 }
 const sockets = new WebSocketServer({ server });
 let connection, generation = 0, retry, username = '', status = { state: 'offline' }, likeTotal = 0;
-const history = [], seen = new Map(), appearances = new Map();
+const history = [], seen = new Map(), appearances = new Map(), arrivals = new Map();
 let diagnostics = {received:0, accepted:0, lastGiftAt:0, issue:''};
 function reportGifts() { broadcast({type:'diagnostics', ...diagnostics}); }
 
@@ -60,7 +60,7 @@ function giftReaction(data) {
 }
 sockets.on('connection', client => {
   client.send(JSON.stringify({ type:'status', ...status, serverTime:Date.now() }));
-  client.send(JSON.stringify({type:'history', gifts:history, likes:likeTotal, serverTime:Date.now()}));
+  client.send(JSON.stringify({type:'history', gifts:history, viewers:[...arrivals.values()], likes:likeTotal, serverTime:Date.now()}));
   client.send(JSON.stringify({type:'diagnostics', ...diagnostics, serverTime:Date.now()}));
 });
 async function connect(token) {
@@ -70,6 +70,16 @@ async function connect(token) {
   const current = new TikTokLiveConnection(username, { processInitialData: false });
   connection = current;
   const active = () => token === generation && current === connection;
+  current.on(WebcastEvent.MEMBER, data => {
+    if (!active()) return;
+    const guest = viewer(data);
+    if (!guest) return;
+    const event = {type:'join', ...guest, at:Date.now()};
+    arrivals.delete(guest.userId);
+    arrivals.set(guest.userId, event);
+    if (arrivals.size > 150) arrivals.delete(arrivals.keys().next().value);
+    broadcast(event);
+  });
   current.on(WebcastEvent.CHAT, data => {
     if (!active()) return;
     const comment = String(data.comment || '').replace(/\s+/gu, ' ').trim();
@@ -138,7 +148,7 @@ function schedule(token, message) { clearTimeout(retry); update('retrying', mess
 app.post('/api/connect', authorizeAdmin, (req, res) => {
   const name = String(req.body.username || '').trim().replace(/^@/, '');
   if (!/^[\w.]{2,32}$/.test(name)) return res.status(400).json({ error: 'Введите ник TikTok без ссылки' });
-  generation++; clearTimeout(retry); connection?.disconnect(); username = name; likeTotal = 0; history.length = 0; seen.clear(); appearances.clear();
+  generation++; clearTimeout(retry); connection?.disconnect(); username = name; likeTotal = 0; history.length = 0; seen.clear(); appearances.clear(); arrivals.clear();
   diagnostics = {received:0, accepted:0, lastGiftAt:0, issue:''};
   broadcast({ type: 'reset' }); reportGifts(); connect(generation); res.json({ ok: true });
 });
