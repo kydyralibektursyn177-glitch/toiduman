@@ -27,9 +27,9 @@ $('connection-message').after(liveDiagnostics);
 let giftDiagnostics = {received:0, accepted:0, issue:''};
 let socketConnected = false, avatarError = '';
 function renderDiagnostics() {
-  liveDiagnostics.textContent = `Нұсқа: live-chat-4 · Сервер: ${socketConnected ? 'қосылған' : 'ажыратылған'} · Кіру: ${giftDiagnostics.joins ?? 0} · Чат: ${giftDiagnostics.chats ?? 0} · ID қатесі: ${giftDiagnostics.rejectedViewers ?? 0} · Сыйлық оқиғалары: ${giftDiagnostics.received} · Қабылданған сыйлықтар: ${giftDiagnostics.accepted} · Сахна: ${model ? '3D дайын' : 'жүктелуде'}`
+  liveDiagnostics.textContent = `Нұсқа: live-chat-5 · Сервер: ${socketConnected ? 'қосылған' : 'ажыратылған'} · Кіру: ${giftDiagnostics.joins ?? 0} · Чат: ${giftDiagnostics.chats ?? 0} · ID қатесі: ${giftDiagnostics.rejectedViewers ?? 0} · Сыйлық оқиғалары: ${giftDiagnostics.received} · Қабылданған сыйлықтар: ${giftDiagnostics.accepted} · Сахна: ${model ? '3D дайын' : 'жүктелуде'}`
     + (avatarError ? ' · Аватар қатесі: ' + avatarError : '')
-    + (giftDiagnostics.build && giftDiagnostics.build !== 'live-chat-4' ? ' · Сервер нұсқасы ескі, серверді қайта іске қос.' : '')
+    + (giftDiagnostics.build && giftDiagnostics.build !== 'live-chat-5' ? ' · Сервер нұсқасы ескі, серверді қайта іске қос.' : '')
     + (giftDiagnostics.issue ? ' · ' + giftDiagnostics.issue : '');
 }
 const capture = query.has('capture');
@@ -144,6 +144,7 @@ function guestBadge(event) {
 
 function announceEntrance(event) {
   const time = serverNow();
+  if (time < arrivalUntil && recentGuest.dataset.chat === 'true') return;
   if (time < nextArrivalAt || nextArrivalId === event.userId && time < arrivalUntil) return;
   nextArrivalAt = time + 1800;
   nextArrivalId = event.userId;
@@ -152,6 +153,7 @@ function announceEntrance(event) {
   const description = document.createElement('span');
   description.textContent = ' залға кірді';
   badge.append(description);
+  recentGuest.dataset.chat = 'false';
   recentGuest.replaceChildren(badge);
   recentGuest.hidden = false;
 }
@@ -165,10 +167,6 @@ function positionGuestNames(now) {
     point.project(camera);
     const visible = point.z > -1 && point.z < 1 && Math.abs(point.x) < 1.13 && Math.abs(point.y) < 1.13;
     dancer.label.hidden = !visible;
-    if (dancer.speech) {
-      dancer.speech.hidden = !visible;
-      dancer.speech.style.transform = `translate(${Math.round((point.x+1)*stageWidth*.5)}px,${Math.round((1-point.y)*stageHeight*.5-40)}px) translate(-50%,-100%)`;
-    }
     if (visible) positions.push({dancer,x:(point.x+1)*stageWidth*.5,y:(1-point.y)*stageHeight*.5});
   }
   positions.sort((a,b)=>b.y-a.y);
@@ -191,12 +189,19 @@ const speechPending = new Map();
 function clearSpeech(dancer) {
   dancer.speech?.remove();
   dancer.speech = null;
+  if (dancer.label) dancer.label.style.zIndex = '';
 }
 
 function showSpeech(event) {
   const text = String(event.message || '').trim();
   const until = (event.at || serverNow()) + CHAT_MS;
   if (!text || until <= serverNow()) return;
+  recentGuest.dataset.chat = 'true';
+  const author = document.createElement('strong');
+  author.textContent = event.name || 'Көрермен';
+  recentGuest.replaceChildren(author, document.createTextNode(' · ' + Array.from(text).slice(0,100).join('')));
+  recentGuest.hidden = false;
+  arrivalUntil = until;
   if (!model) {
     speechPending.delete(event.userId);
     speechPending.set(event.userId, event);
@@ -215,9 +220,17 @@ function showSpeech(event) {
   const speech = document.createElement('div');
   speech.className = 'guest-speech';
   speech.textContent = Array.from(text).slice(0, 100).join('');
-  guestLayer.append(speech);
+  // Keep the message attached to the already-visible name badge.
+  Object.assign(speech.style, {position:'absolute', left:'50%', top:'auto', bottom:'calc(100% + 10px)',
+    transform:'translateX(-50%)', width:'max-content', maxWidth:'min(280px, 60vw)', padding:'10px 14px',
+    background:'#18243b', color:'#fff5e8', border:'2px solid #99e4dc', borderRadius:'14px',
+    font:'600 18px/1.4 Arial,sans-serif', whiteSpace:'pre-wrap', overflowWrap:'anywhere', zIndex:'5'});
+  dancer.label.append(speech);
+  dancer.label.style.zIndex = '5';
   dancer.speech = speech;
   dancer.speechUntil = until;
+  focusGuest(event.userId);
+  cameraGuestUntil = until;
 }
 const clothes = new WeakMap();
 function outfit(texture, variant) {

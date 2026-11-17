@@ -31,7 +31,7 @@ test('switching LIVE accounts routes gifts and ignores stale connections', async
   await connect('first.account');
   connections[0].emit('member', {user:{idStr:'123', nickname:'Алихан'}});
   assert.equal(messages.at(-1).joins, 1);
-  assert.equal(messages.at(-1).build, 'live-chat-4');
+  assert.equal(messages.at(-1).build, 'live-chat-5');
   assert.equal(messages.filter(m=>m.type==='join').at(-1).name, 'Алихан');
   assert.equal(messages.filter(m=>m.type==='join').at(-1).userId, '123');
   connections[0].emit('member', {});
@@ -122,10 +122,11 @@ test('chat displays a text bubble above its viewer, replaces it and cleans up', 
   const speechCode = source.slice(source.indexOf('const CHAT_MS'), source.indexOf('const clothes'));
   const bubbles = [], dancers = new Map();
   const ctx = vm.createContext({model:true, MAX_DANCERS:10, dancers,
+    recentGuest:{dataset:{},replaceChildren(){},hidden:true}, arrivalUntil:0, focusGuest(){}, cameraGuestUntil:0,
     serverNow:()=>1000,
     guestLayer:{append:element=>bubbles.push(element)},
-    document:{createElement:()=>({style:{},remove(){this.removed=true;}})},
-    addDancer:event=>{const dancer={name:event.name,until:61000};dancers.set(event.userId,dancer);return dancer;}
+    document:{createElement:()=>({style:{},remove(){this.removed=true;}}),createTextNode:text=>text},
+    addDancer:event=>{const dancer={name:event.name,until:61000,label:{style:{},append:element=>bubbles.push(element)}};dancers.set(event.userId,dancer);return dancer;}
   });
   vm.runInContext(speechCode,ctx);
   vm.runInContext("showSpeech({userId:'viewer',name:'Айша',message:'Сәлем, достар!'})",ctx);
