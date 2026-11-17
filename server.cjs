@@ -6,7 +6,7 @@ const app = express();
 app.use(express.json());
 app.use('/assets', express.static('assets'));
 app.use('/vendor', express.static('node_modules/three'));
-for (const file of ['index.html', 'club.js', 'style.css']) app.get(file === 'index.html' ? '/' : '/' + file, (_, res) => res.sendFile(require('path').join(__dirname, file)));
+for (const file of ['index.html', 'club.js', 'style.css']) app.get(file === 'index.html' ? '/' : '/' + file, (_, res) => res.set('Cache-Control', 'no-store').sendFile(require('path').join(__dirname, file)));
 const hosted = Boolean(process.env.PORT);
 const port = Number(process.env.PORT || 3001);
 const adminKey = process.env.ADMIN_KEY || '';
@@ -22,7 +22,9 @@ function authorizeAdmin(req, res, next) {
 const sockets = new WebSocketServer({ server });
 let connection, generation = 0, retry, username = '', status = { state: 'offline' }, likeTotal = 0;
 const history = [], seen = new Map(), appearances = new Map(), arrivals = new Map();
-let diagnostics = {received:0, accepted:0, lastGiftAt:0, issue:''};
+const BUILD = 'live-chat-3';
+const freshDiagnostics = () => ({build:BUILD, received:0, accepted:0, joins:0, chats:0, rejectedViewers:0, lastGiftAt:0, issue:''});
+let diagnostics = freshDiagnostics();
 function reportGifts() { broadcast({type:'diagnostics', ...diagnostics}); }
 
 function broadcast(event) {
@@ -72,23 +74,26 @@ async function connect(token) {
   const active = () => token === generation && current === connection;
   current.on(WebcastEvent.MEMBER, data => {
     if (!active()) return;
+    diagnostics.joins++;
     const guest = viewer(data);
-    if (!guest) return;
+    if (!guest) { diagnostics.rejectedViewers++; reportGifts(); return; }
     const event = {type:'join', ...guest, at:Date.now()};
     arrivals.delete(guest.userId);
     arrivals.set(guest.userId, event);
     if (arrivals.size > 150) arrivals.delete(arrivals.keys().next().value);
     broadcast(event);
+    reportGifts();
   });
   current.on(WebcastEvent.CHAT, data => {
     if (!active()) return;
+    diagnostics.chats++;
     const comment = String(data.comment || '').replace(/\s+/gu, ' ').trim();
-    if (!comment) return;
+    if (!comment) { reportGifts(); return; }
     const command = comment.toLowerCase().replace(/^[!/]/, '');
     const appearance = /^(boy|man|male|бала|ұл|парень|м)$/.test(command) ? 'man'
       : /^(woman|girl|female|қыз|девушка|ж)$/.test(command) ? 'woman' : undefined;
     const guest = viewer(data);
-    if (!guest) return;
+    if (!guest) { diagnostics.rejectedViewers++; reportGifts(); return; }
     if (appearance) {
       appearances.set(guest.userId, appearance);
       if (appearances.size > 5000) appearances.delete(appearances.keys().next().value);
@@ -96,6 +101,7 @@ async function connect(token) {
     }
     const at = Date.now();
     broadcast({type:'chat', ...guest, appearance, message:Array.from(comment).slice(0, 100).join(''), at});
+    reportGifts();
   });
   current.on(WebcastEvent.LIKE, data => {
     if (!active()) return;
@@ -149,8 +155,8 @@ app.post('/api/connect', authorizeAdmin, (req, res) => {
   const name = String(req.body.username || '').trim().replace(/^@/, '');
   if (!/^[\w.]{2,32}$/.test(name)) return res.status(400).json({ error: 'Введите ник TikTok без ссылки' });
   generation++; clearTimeout(retry); connection?.disconnect(); username = name; likeTotal = 0; history.length = 0; seen.clear(); appearances.clear(); arrivals.clear();
-  diagnostics = {received:0, accepted:0, lastGiftAt:0, issue:''};
+  diagnostics = freshDiagnostics();
   broadcast({ type: 'reset' }); reportGifts(); connect(generation); res.json({ ok: true });
 });
 app.post('/api/disconnect', authorizeAdmin, (_, res) => { generation++; clearTimeout(retry); connection?.disconnect(); connection = null; update('offline', 'Отключено'); res.json({ ok: true }); });
-app.get('/api/status', (_, res) => res.json({...status, requiresKey:Boolean(adminKey)}));
+app.get('/api/status', (_, res) => res.json({...status, requiresKey:Boolean(adminKey), build:BUILD, diagnostics}));

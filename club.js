@@ -25,8 +25,11 @@ liveDiagnostics.className = 'muted';
 liveDiagnostics.setAttribute('role','status');
 $('connection-message').after(liveDiagnostics);
 let giftDiagnostics = {received:0, accepted:0, issue:''};
+let socketConnected = false, avatarError = '';
 function renderDiagnostics() {
-  liveDiagnostics.textContent = `Сыйлық оқиғалары: ${giftDiagnostics.received} · Қабылданған сыйлықтар: ${giftDiagnostics.accepted} · Сахна: ${model ? '3D дайын' : 'жүктелуде'}`
+  liveDiagnostics.textContent = `Нұсқа: live-chat-3 · Сервер: ${socketConnected ? 'қосылған' : 'ажыратылған'} · Кіру: ${giftDiagnostics.joins ?? 0} · Чат: ${giftDiagnostics.chats ?? 0} · ID қатесі: ${giftDiagnostics.rejectedViewers ?? 0} · Сыйлық оқиғалары: ${giftDiagnostics.received} · Қабылданған сыйлықтар: ${giftDiagnostics.accepted} · Сахна: ${model ? '3D дайын' : 'жүктелуде'}`
+    + (avatarError ? ' · Аватар қатесі: ' + avatarError : '')
+    + (giftDiagnostics.build && giftDiagnostics.build !== 'live-chat-3' ? ' · Сервер нұсқасы ескі, серверді қайта іске қос.' : '')
     + (giftDiagnostics.issue ? ' · ' + giftDiagnostics.issue : '');
 }
 const capture = query.has('capture');
@@ -479,7 +482,7 @@ Promise.all([loader.loadAsync('/assets/guest.glb'), loader.loadAsync('/assets/wo
       }
     }
   })
-  .catch(error => { $('loading').textContent = 'Аватарларды жүктеу қатесі · ' + error.message; });
+  .catch(error => { avatarError = error.message; renderDiagnostics(); $('loading').textContent = 'Аватарларды жүктеу қатесі · ' + error.message; });
 
 const linen = new THREE.MeshStandardMaterial({color:0xe7cfad,roughness:.82});
 const candle = new THREE.MeshBasicMaterial({color:0xffdf92});
@@ -856,6 +859,7 @@ function updateLikes(count, live) {
 function openSocket() {
   const scheme = location.protocol === 'https:' ? 'wss' : 'ws';
   const socket = new WebSocket(scheme + '://' + location.host);
+  socket.onopen = () => { socketConnected = true; renderDiagnostics(); };
   socket.onmessage = event => {
     const data = JSON.parse(event.data);
     syncClock(data.serverTime);
@@ -908,6 +912,8 @@ function openSocket() {
     }
   };
   socket.onclose = () => {
+    socketConnected = false;
+    renderDiagnostics();
     $('status').textContent = 'СЕРВЕРГЕ ҚОСЫЛУ МҮМКІН ЕМЕС';
     document.body.classList.remove('connected');
     setTimeout(openSocket,3000);
