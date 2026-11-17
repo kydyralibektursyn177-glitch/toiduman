@@ -31,7 +31,7 @@ test('switching LIVE accounts routes gifts and ignores stale connections', async
   await connect('first.account');
   connections[0].emit('member', {user:{idStr:'123', nickname:'Алихан'}});
   assert.equal(messages.at(-1).joins, 1);
-  assert.equal(messages.at(-1).build, 'live-chat-3');
+  assert.equal(messages.at(-1).build, 'live-chat-4');
   assert.equal(messages.filter(m=>m.type==='join').at(-1).name, 'Алихан');
   assert.equal(messages.filter(m=>m.type==='join').at(-1).userId, '123');
   connections[0].emit('member', {});
@@ -94,7 +94,7 @@ test('entry creates a named dancer and focuses once; history restores quietly', 
   const receive = source.slice(source.indexOf('function receive('), source.indexOf('function updateDuet('));
   const dancers = new Map(), focused = [], announced = [];
   const ctx = vm.createContext({
-    model:true, processed:new Set(), dancers, pending:[], speechPending:new Map(),
+    model:true, cameraGuestId:undefined, processed:new Set(), dancers, pending:[], speechPending:new Map(),
     serverNow:()=>1000,
     addDancer:event=>{const dancer = {name:event.name}; dancers.set(event.userId,dancer); return dancer;},
     announceEntrance:event=>announced.push(event.userId), focusGuest:id=>focused.push(id)
@@ -133,7 +133,7 @@ test('chat displays a text bubble above its viewer, replaces it and cleans up', 
   assert.equal(dancer.speech.textContent,'Сәлем, достар!');
   assert.equal(dancer.speech.className,'guest-speech');
   assert.equal(bubbles.length,1);
-  assert.equal(dancer.speechUntil,6500);
+  assert.equal(dancer.speechUntil,11000);
   vm.runInContext("showSpeech({userId:'viewer',message:'<img src=x onerror=alert(1)>'})",ctx);
   assert.equal(bubbles[0].removed,true);
   assert.equal(dancer.speech.textContent,'<img src=x onerror=alert(1)>', 'chat is plain text');
@@ -142,4 +142,18 @@ test('chat displays a text bubble above its viewer, replaces it and cleans up', 
   vm.runInContext("clearSpeech(dancers.get('viewer'))",ctx);
   assert.equal(bubbles[1].removed,true);
   assert.equal(dancer.speech,null);
+});
+
+
+test('arrivals preserve speaking viewers on a full stage', () => {
+  const source = readFileSync('club.js','utf8');
+  const code = source.slice(source.indexOf('function evictionCandidate('), source.indexOf('function addDancer('));
+  const dancers = new Map([['speaker',{speechUntil:11000}],['quiet',{}],['partner',{}]]);
+  const ctx = vm.createContext({dancers,duet:{ids:['partner']},duetTickets:new Map()});
+  vm.runInContext(code,ctx);
+  assert.equal(vm.runInContext("evictionCandidate({type:'join'},1000)",ctx),'quiet');
+  dancers.get('quiet').speechUntil=11000;
+  assert.equal(vm.runInContext("evictionCandidate({type:'join'},1000)",ctx),undefined,'entry waits when all available viewers are speaking');
+  assert.equal(vm.runInContext("evictionCandidate({type:'chat'},1000)",ctx),'speaker','new chat can still appear when stage is full');
+  assert.equal(vm.runInContext("evictionCandidate({type:'join'},12000)",ctx),'speaker','expired speech releases the slot');
 });

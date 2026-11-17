@@ -27,9 +27,9 @@ $('connection-message').after(liveDiagnostics);
 let giftDiagnostics = {received:0, accepted:0, issue:''};
 let socketConnected = false, avatarError = '';
 function renderDiagnostics() {
-  liveDiagnostics.textContent = `Нұсқа: live-chat-3 · Сервер: ${socketConnected ? 'қосылған' : 'ажыратылған'} · Кіру: ${giftDiagnostics.joins ?? 0} · Чат: ${giftDiagnostics.chats ?? 0} · ID қатесі: ${giftDiagnostics.rejectedViewers ?? 0} · Сыйлық оқиғалары: ${giftDiagnostics.received} · Қабылданған сыйлықтар: ${giftDiagnostics.accepted} · Сахна: ${model ? '3D дайын' : 'жүктелуде'}`
+  liveDiagnostics.textContent = `Нұсқа: live-chat-4 · Сервер: ${socketConnected ? 'қосылған' : 'ажыратылған'} · Кіру: ${giftDiagnostics.joins ?? 0} · Чат: ${giftDiagnostics.chats ?? 0} · ID қатесі: ${giftDiagnostics.rejectedViewers ?? 0} · Сыйлық оқиғалары: ${giftDiagnostics.received} · Қабылданған сыйлықтар: ${giftDiagnostics.accepted} · Сахна: ${model ? '3D дайын' : 'жүктелуде'}`
     + (avatarError ? ' · Аватар қатесі: ' + avatarError : '')
-    + (giftDiagnostics.build && giftDiagnostics.build !== 'live-chat-3' ? ' · Сервер нұсқасы ескі, серверді қайта іске қос.' : '')
+    + (giftDiagnostics.build && giftDiagnostics.build !== 'live-chat-4' ? ' · Сервер нұсқасы ескі, серверді қайта іске қос.' : '')
     + (giftDiagnostics.issue ? ' · ' + giftDiagnostics.issue : '');
 }
 const capture = query.has('capture');
@@ -185,7 +185,7 @@ function positionGuestNames(now) {
   }
   if (!recentGuest.hidden && now >= arrivalUntil) recentGuest.hidden = true;
 }
-const CHAT_MS = 5500;
+const CHAT_MS = 10000;
 const speechPending = new Map();
 
 function clearSpeech(dancer) {
@@ -252,6 +252,13 @@ function outfit(texture, variant) {
   variants.set(variant,map);
   return map;
 }
+function evictionCandidate(event, now) {
+  const ids = [...dancers.keys()];
+  const available = id => !duet?.ids.includes(id) && !(dancers.get(id).speechUntil > now);
+  return ids.find(id => available(id) && !duetTickets.has(id))
+    ?? ids.find(available)
+    ?? (event.type !== 'join' ? ids.find(id => !duet?.ids.includes(id)) : undefined);
+}
 function addDancer(event) {
   const now = serverNow();
   const until = event.until ?? ((event.at || now) + DANCE_MS);
@@ -269,9 +276,7 @@ function addDancer(event) {
     event = { ...event, until: dancer.until };
   }
   if (dancers.size >= MAX_DANCERS) {
-    const ids = [...dancers.keys()];
-    const oldest = ids.find(id => !duet?.ids.includes(id) && !duetTickets.has(id))
-      ?? ids.find(id => !duet?.ids.includes(id));
+    const oldest = evictionCandidate(event, now);
     if (oldest === undefined) return;
     removeDancer(oldest);
     duetTickets.delete(oldest);
@@ -349,7 +354,7 @@ function receive(event, quiet = false) {
   if (!dancer) return;
   if (event.type === 'join' && !quiet && !existing) {
     announceEntrance(event);
-    focusGuest(event.userId);
+    if (!(dancers.get(cameraGuestId)?.speechUntil > serverNow())) focusGuest(event.userId);
   }
   const comment = speechPending.get(event.userId);
   if (comment) { speechPending.delete(event.userId); showSpeech(comment); }

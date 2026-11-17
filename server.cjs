@@ -22,7 +22,7 @@ function authorizeAdmin(req, res, next) {
 const sockets = new WebSocketServer({ server });
 let connection, generation = 0, retry, username = '', status = { state: 'offline' }, likeTotal = 0;
 const history = [], seen = new Map(), appearances = new Map(), arrivals = new Map();
-const BUILD = 'live-chat-3';
+const BUILD = 'live-chat-4';
 const freshDiagnostics = () => ({build:BUILD, received:0, accepted:0, joins:0, chats:0, rejectedViewers:0, lastGiftAt:0, issue:''});
 let diagnostics = freshDiagnostics();
 function reportGifts() { broadcast({type:'diagnostics', ...diagnostics}); }
