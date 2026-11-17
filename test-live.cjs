@@ -110,3 +110,31 @@ test('entry creates a named dancer and focuses once; history restores quietly', 
   assert.equal(dancers.get('3').name,'Дана');
   assert.deepEqual(focused,['1','3']);
 });
+
+
+test('chat displays a text bubble above its viewer, replaces it and cleans up', () => {
+  const source = readFileSync('club.js','utf8');
+  const speechCode = source.slice(source.indexOf('const CHAT_MS'), source.indexOf('const clothes'));
+  const bubbles = [], dancers = new Map();
+  const ctx = vm.createContext({model:true, MAX_DANCERS:10, dancers,
+    serverNow:()=>1000,
+    guestLayer:{append:element=>bubbles.push(element)},
+    document:{createElement:()=>({style:{},remove(){this.removed=true;}})},
+    addDancer:event=>{const dancer={name:event.name,until:61000};dancers.set(event.userId,dancer);return dancer;}
+  });
+  vm.runInContext(speechCode,ctx);
+  vm.runInContext("showSpeech({userId:'viewer',name:'Айша',message:'Сәлем, достар!'})",ctx);
+  const dancer = dancers.get('viewer');
+  assert.equal(dancer.speech.textContent,'Сәлем, достар!');
+  assert.equal(dancer.speech.className,'guest-speech');
+  assert.equal(bubbles.length,1);
+  assert.equal(dancer.speechUntil,6500);
+  vm.runInContext("showSpeech({userId:'viewer',message:'<img src=x onerror=alert(1)>'})",ctx);
+  assert.equal(bubbles[0].removed,true);
+  assert.equal(dancer.speech.textContent,'<img src=x onerror=alert(1)>', 'chat is plain text');
+  vm.runInContext("showSpeech({userId:'viewer',message:'old',at:-10000})",ctx);
+  assert.equal(bubbles.length,2,'expired messages do not replace current chat');
+  vm.runInContext("clearSpeech(dancers.get('viewer'))",ctx);
+  assert.equal(bubbles[1].removed,true);
+  assert.equal(dancer.speech,null);
+});

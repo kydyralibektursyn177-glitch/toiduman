@@ -162,6 +162,10 @@ function positionGuestNames(now) {
     point.project(camera);
     const visible = point.z > -1 && point.z < 1 && Math.abs(point.x) < 1.13 && Math.abs(point.y) < 1.13;
     dancer.label.hidden = !visible;
+    if (dancer.speech) {
+      dancer.speech.hidden = !visible;
+      dancer.speech.style.transform = `translate(${Math.round((point.x+1)*stageWidth*.5)}px,${Math.round((1-point.y)*stageHeight*.5-40)}px) translate(-50%,-100%)`;
+    }
     if (visible) positions.push({dancer,x:(point.x+1)*stageWidth*.5,y:(1-point.y)*stageHeight*.5});
   }
   positions.sort((a,b)=>b.y-a.y);
@@ -182,10 +186,7 @@ const CHAT_MS = 5500;
 const speechPending = new Map();
 
 function clearSpeech(dancer) {
-  if (!dancer.speech) return;
-  dancer.root.remove(dancer.speech);
-  dancer.speech.material.map.dispose();
-  dancer.speech.material.dispose();
+  dancer.speech?.remove();
   dancer.speech = null;
 }
 
@@ -208,50 +209,10 @@ function showSpeech(event) {
     dancer = addDancer({...event, name:dancer.name, until:dancer.until});
   }
   clearSpeech(dancer);
-  const canvas = document.createElement('canvas');
-  canvas.width = 512;
-  const ctx = canvas.getContext('2d');
-  ctx.font = '600 30px Arial';
-  const lines = [''];
-  for (const char of Array.from(text).slice(0,100)) {
-    const i = lines.length - 1;
-    if (ctx.measureText(lines[i] + char).width <= 454) {
-      lines[i] += char;
-    } else if (lines.length < 3) {
-      lines.push(char.trimStart());
-    } else {
-      lines[i] = Array.from(lines[i]).slice(0,-2).join('') + '…';
-      break;
-    }
-  }
-  canvas.width = Math.max(112, Math.ceil(Math.max(...lines.map(line => ctx.measureText(line).width))) + 48);
-  canvas.height = lines.length * 38 + 35;
-  const center = canvas.width / 2;
-  ctx.fillStyle = '#18243b';
-  ctx.beginPath();
-  ctx.roundRect(3,3,canvas.width-6,canvas.height-16,18);
-  ctx.fill();
-  ctx.strokeStyle = '#99e4dc';
-  ctx.lineWidth = 3;
-  ctx.stroke();
-  ctx.beginPath();
-  ctx.moveTo(center-12,canvas.height-15);
-  ctx.lineTo(center,canvas.height-3);
-  ctx.lineTo(center+12,canvas.height-15);
-  ctx.fill();
-  ctx.font = '600 30px Arial';
-  ctx.fillStyle = '#fff5e8';
-  ctx.textAlign = 'center';
-  lines.forEach((line,i) => ctx.fillText(line,center,39+i*38));
-  const map = new THREE.CanvasTexture(canvas);
-  map.colorSpace = THREE.SRGBColorSpace;
-  const speech = new THREE.Sprite(new THREE.SpriteMaterial({map, transparent:true, depthTest:false, depthWrite:false, toneMapped:false}));
-  const speechWidth = 5.6;
-  const height = speechWidth * canvas.height / 512;
-  speech.scale.set(speechWidth * canvas.width / 512,height,1);
-  speech.position.y = 3.28 + height/2;
-  speech.renderOrder = 5;
-  dancer.root.add(speech);
+  const speech = document.createElement('div');
+  speech.className = 'guest-speech';
+  speech.textContent = Array.from(text).slice(0, 100).join('');
+  guestLayer.append(speech);
   dancer.speech = speech;
   dancer.speechUntil = until;
 }
@@ -776,7 +737,7 @@ function render(timestamp) {
     if (dancer.speech) {
       const remaining = dancer.speechUntil - now;
       if (remaining <= 0) clearSpeech(dancer);
-      else dancer.speech.material.opacity = Math.min(1, remaining / 500);
+      else dancer.speech.style.opacity = Math.min(1, remaining / 500);
     }
     animateGuest(dancer,dt,time,duet?.ids.indexOf(id) ?? -1);
   }
