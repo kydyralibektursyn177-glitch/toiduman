@@ -12,3 +12,6 @@ node_modules/
 /assets/man.fbx
 /assets/man.glb
 /assets/performer.glb
+
+# Local shared dependency symlinks
+node_modules

@@ -8,7 +8,7 @@ app.use('/assets', express.static('assets'));
 app.use('/vendor', express.static('node_modules/three'));
 for (const file of ['index.html', 'club.js', 'style.css']) app.get(file === 'index.html' ? '/' : '/' + file, (_, res) => res.set('Cache-Control', 'no-store').sendFile(require('path').join(__dirname, file)));
 const hosted = Boolean(process.env.PORT);
-const port = Number(process.env.PORT || 3001);
+const port = Number(process.env.PORT || 3002);
 const adminKey = process.env.ADMIN_KEY || '';
 if (hosted && !adminKey) throw new Error('Set ADMIN_KEY before running the hosted club');
 const server = app.listen(port, hosted ? '0.0.0.0' : '127.0.0.1', () => console.log('Club listening on port ' + port));
@@ -22,7 +22,7 @@ function authorizeAdmin(req, res, next) {
 const sockets = new WebSocketServer({ server });
 let connection, generation = 0, retry, username = '', status = { state: 'offline' }, likeTotal = 0;
 const history = [], seen = new Map(), appearances = new Map(), arrivals = new Map();
-const BUILD = 'live-chat-5';
+const BUILD = 'wedding-50-v1';
 const freshDiagnostics = () => ({build:BUILD, received:0, accepted:0, joins:0, chats:0, rejectedViewers:0, lastGiftAt:0, issue:''});
 let diagnostics = freshDiagnostics();
 function reportGifts() { broadcast({type:'diagnostics', ...diagnostics}); }
