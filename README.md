@@ -24,10 +24,15 @@ The goal counts units of the gift name entered in the control panel. Team comman
 
 ## Optional settings
 
-Copy `.env.example` to `.env`. Set `PORT` to change the listener port. Set `SIGN_API_KEY` if your Euler Stream signing configuration requires it. By default the app binds to `127.0.0.1`. Use this local setup for OBS or LIVE Studio on the same computer. The control room has no authentication, so keep it on loopback or behind authenticated access.
+Copy `.env.example` to `.env`. Set `PORT` to change the listener port. Set `SIGN_API_KEY` if your Euler Stream signing configuration requires it. By default the app binds to `127.0.0.1`. Use this local setup for OBS or LIVE Studio on the same computer. Set `ADMIN_KEY` (at least 16 characters) to protect both HTTP pages and Socket.IO connections with Basic authentication. The username is `admin`. Public binding requires this password.
 
 [TikTok LIVE Connector](https://github.com/zerodytrash/TikTok-Live-Connector) is unofficial and may break after TikTok updates. The server retries dropped connections, offline rooms and rate limits with capped exponential backoff. The control page displays the current connection state and retry timing.
 
 ## Audio
 
 The WAV clips in `public/sounds` are original synthesized cues made for this project, including the plucked-string dombra-style cue. Use or replace them freely. If a file cannot be loaded, the overlay plays a generated Web Audio phrase after audio is enabled.
+
+
+## Render
+
+Deploy branch `tiktok-bizz` as a separate Web Service. Build: `npm ci`; start: `npm start`. Set `ADMIN_KEY` in Render Environment to a private password of at least 16 characters. The browser login is `admin` and this password. Render supplies `PORT`; the app then listens on `0.0.0.0`. Leave `HOST` unset. Unauthenticated HTTP and Socket.IO access is rejected. The overlay also requires authentication.
