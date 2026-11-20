@@ -1,0 +1,17 @@
+// Original inline vector artwork. Only fixed markup goes into SVG containers.
+const horn = 'M0 0C-19-20-23-51-12-69C4-94 44-93 57-72C69-53 54-34 36-37C19-39 14-57 25-66C32-72 43-68 43-60C43-55 38-52 34-54';
+const ornament = '<svg viewBox="0 0 400 400" aria-hidden="true"><g transform="translate(200 200)" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M0-173 173 0 0 173-173 0Z" stroke-width="2" opacity=".5"/><path d="M0-142 142 0 0 142-142 0Z" stroke-width="4"/>' +
+  [0,90,180,270].map(angle => '<g transform="rotate('+angle+')" stroke-width="7"><path d="'+horn+'"/><path transform="scale(-1 1)" d="'+horn+'"/><path d="M0-92Q-17-111 0-132Q17-111 0-92Z" fill="currentColor"/></g>').join('') +
+  '<circle r="10" fill="currentColor"/></g></svg>';
+const eagle = '<svg viewBox="0 0 380 250" aria-hidden="true"><defs><linearGradient id="feather" x2=".55" y2="1"><stop stop-color="#ffe6a2"/><stop offset=".5" stop-color="#cf8b37"/><stop offset="1" stop-color="#65341c"/></linearGradient></defs><g fill="url(#feather)" stroke="#f8c779" stroke-width="2" stroke-linejoin="round"><path class="wing left" d="M182 132Q119 55 19 30L51 91 23 66 50 120 35 108 72 146 62 140 108 170 157 170Z"/><path class="wing right" d="M198 132Q261 55 361 30L329 91 357 66 330 120 345 108 308 146 318 140 272 170 223 170Z"/><path d="M165 136Q158 110 175 98Q196 78 218 104L236 113 215 122Q218 160 204 184L219 223 190 212 161 223 175 183Q159 160 165 136Z"/><path d="m214 103 22 10-21 9" fill="#ffdc71"/></g><circle cx="207" cy="105" r="4" fill="#15212a"/></svg>';
+const doughnut = '<svg viewBox="0 0 100 100" aria-hidden="true"><circle cx="50" cy="50" r="35" fill="none" stroke="#a75831" stroke-width="22"/><circle cx="50" cy="46" r="35" fill="none" stroke="#ff91aa" stroke-width="17" stroke-dasharray="18 2 26 3 23 1 9 1 40 3 92 2"/><path d="m28 27 5 4m26-11 6 6m15 15-6 4m-9 23 6 4m-35 0-5-3m-9-23 5 3" fill="none" stroke="#fff0b8" stroke-linecap="round" stroke-width="4"/></svg>';
+const hat = '<svg viewBox="0 0 280 160" aria-hidden="true"><path d="M42 118Q47 62 74 41Q140-11 206 41Q233 62 238 118Q140 157 42 118Z" fill="#156766" stroke="#ffe095" stroke-width="5"/><path d="M42 111Q140 141 238 111L238 129Q140 164 42 129Z" fill="#10333d" stroke="#e6b565" stroke-width="3"/><path d="M140 111Q92 81 106 53Q120 37 130 57Q135 67 122 70M140 111Q188 81 174 53Q160 37 150 57Q145 67 158 70M66 101Q76 82 88 88Q100 92 89 103M214 101Q204 82 192 88Q180 92 191 103" fill="none" stroke="#f9cf7c" stroke-linecap="round" stroke-width="5"/></svg>';
+const silhouette = '<svg viewBox="0 0 270 250" aria-hidden="true"><path d="M35 249Q40 186 97 172V153Q78 141 77 106Q65 89 80 81Q82 22 135 23Q188 22 190 81Q205 89 193 106Q192 141 173 153V172Q230 186 235 249Z" fill="#133740" stroke="#53c9c4" stroke-width="4"/><path d="M103 249 116 195 135 216 154 195 167 249" fill="none" stroke="#ebbe70" stroke-width="4"/></svg>';
+const crown = '<svg viewBox="0 0 180 100" aria-hidden="true"><path d="m16 25 42 26 32-39 32 39 42-26-19 61H35Z" fill="#e9a945" stroke="#ffeab0" stroke-width="5"/><path d="M36 72h108M90 54l8 9-8 9-8-9Z" fill="none" stroke="#fff4c8" stroke-width="4"/></svg>';
+function art(svg, type) {
+  const container = element('div', null, type);
+  container.innerHTML = svg;
+  return container;
+}
+const heroArt = document.querySelector('.hero-art');
+if (heroArt) heroArt.innerHTML = ornament;

@@ -1,0 +1,116 @@
+{
+  "rules": [
+    {
+      "names": [
+        "Rose"
+      ],
+      "action": "rose"
+    },
+    {
+      "names": [
+        "TikTok",
+        "Finger Heart"
+      ],
+      "action": "proverb"
+    },
+    {
+      "names": [
+        "Doughnut",
+        "Donut"
+      ],
+      "action": "doughnut"
+    },
+    {
+      "names": [
+        "Hat and Mustache",
+        "Hat and Moustache"
+      ],
+      "action": "hat"
+    },
+    {
+      "names": [
+        "Lion",
+        "Galaxy",
+        "Universe",
+        "TikTok Universe"
+      ],
+      "action": "cinema"
+    }
+  ],
+  "tiers": [
+    {
+      "minCoins": 1000,
+      "action": "cinema"
+    },
+    {
+      "minCoins": 100,
+      "action": "eagle"
+    },
+    {
+      "minCoins": 0,
+      "action": "proverb"
+    }
+  ],
+  "tests": [
+    [
+      "Rose",
+      1,
+      1
+    ],
+    [
+      "TikTok",
+      1,
+      1
+    ],
+    [
+      "Finger Heart",
+      5,
+      1
+    ],
+    [
+      "Doughnut",
+      30,
+      1
+    ],
+    [
+      "Hat and Mustache",
+      99,
+      1
+    ],
+    [
+      "Corgi",
+      299,
+      1
+    ],
+    [
+      "Swan",
+      699,
+      1
+    ],
+    [
+      "Lion",
+      29999,
+      1
+    ],
+    [
+      "Galaxy",
+      1000,
+      1
+    ],
+    [
+      "Universe",
+      44999,
+      1
+    ],
+    [
+      "Rose",
+      1,
+      5
+    ],
+    [
+      "Rose",
+      1,
+      10
+    ]
+  ]
+}

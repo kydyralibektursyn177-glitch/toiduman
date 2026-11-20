@@ -1,0 +1,17 @@
+<!doctype html>
+<html lang="kk"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Қазақ Шоу — LIVE басқару</title><link rel="stylesheet" href="/style.css"><script defer src="/socket.io/socket.io.js"></script><script defer src="/common.js"></script><script defer src="/art.js"></script><script defer src="/control.js"></script></head>
+<body class="control"><main class="dashboard">
+<header class="mast"><div class="brand"><span class="seal" aria-hidden="true"></span><div>ҚАЗАҚ <b>ШОУ</b><small>TIKTOK LIVE STUDIO OVERLAY</small></div></div><span id="local" class="connection">Сервер · …</span></header>
+<section class="hero"><div class="hero-art" aria-hidden="true"></div><div class="hero-content"><h1>Тікелей эфир<span>Панель управления эфиром</span></h1>
+<form id="connect"><label for="user">TikTok атауы <small>Имя пользователя</small></label><div class="input-row"><input id="user" maxlength="25" placeholder="@username" required autocomplete="off" spellcheck="false"><button class="primary">Қосылу <small>Подключиться</small></button></div></form>
+<div class="live-line"><strong id="status" data-status="offline">Офлайн</strong><span id="viewers">0</span> <span>көрермен / зрителей</span></div>
+</div></section>
+<p id="notice" role="status"></p>
+<div class="grid">
+<section class="card"><h2>Эфир сілтемесі <small>Ссылка на оверлей</small></h2><label for="mode">Экран / Формат</label><select id="mode"><option value="vertical">9:16 · 1080 × 1920</option><option value="horizontal">16:9 · 1920 × 1080</option></select><div class="input-row link-row"><input id="link" readonly aria-label="Ссылка на оверлей"><button id="copy">Көшіру <small>Копировать</small></button></div><a id="preview" target="_blank" rel="noopener">Ашу / Открыть оверлей</a></section>
+<section class="card"><h2>Дастархан-мақсат <small>Цель эфира</small></h2><form id="goal-editor"><label>Мақсат / Название<input id="label" maxlength="100" required value="Бесбармақ дайындаймыз"></label><div class="input-row"><label>Сыйлық / Подарок<input id="target-gift" maxlength="50" required value="Rose"></label><label>Саны / Количество<input id="target" type="number" min="1" max="1000000" required value="300"></label></div><button>Сақтау <small>Сохранить</small></button></form><div id="goal"></div></section>
+<section class="card"><h2>Сынақ режимі <small>Тест подарков</small></h2><p class="muted">Эфирсіз тексеріңіз / Проверка без эфира</p><div id="tests" class="tests"></div><div class="tests secondary"><button data-event="chat">Чат</button><button data-event="follow">Жазылу / Подписка</button><button data-event="share">Бөлісу / Репост</button></div></section>
+<section class="card"><h2>Соңғы сыйлықтар <small>Последние подарки</small></h2><ol id="feed" class="feed"></ol></section>
+<section class="card"><h2>Топ 5 <small>Лидеры эфира</small></h2><div id="leaders"></div></section>
+<section class="card"><h2>Аймақтар сайысы <small>Битва регионов</small></h2><div id="teams"></div><p class="muted commands">!almaty · !astana · !shymkent</p></section>
+</div></main></body></html>

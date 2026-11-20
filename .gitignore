@@ -1,14 +1,2 @@
 node_modules/
-.local-backup/
-*.log
 .env
-.env.*
-/finish.mjs
-/fix-dance.mjs
-/patch.mjs
-/polish.mjs
-/refine.mjs
-/upgrade.mjs
-/assets/man.fbx
-/assets/man.glb
-/assets/performer.glb

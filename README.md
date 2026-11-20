@@ -1,27 +1,33 @@
-# Қазақша клуб БХБ
+# Қазақ Шоу
 
-3D-танцпол для TikTok LIVE с подарками, чатом и миссиями. Вход зрителя выводит его на танцпол с именем, камера плавно приближается к нему на 4 секунды. Сообщения участников появляются над их персонажами, если событие входа пропущено, первое сообщение также добавляет персонажа.
+A local TikTok LIVE gift overlay for OBS and TikTok LIVE Studio. The control page and transparent overlay share a room through Socket.IO. After you start your TikTok LIVE and connect once, gifts and chat events drive the overlay automatically.
 
-## Windows
+## Run locally
 
-Установи Node.js 24, выполни `npm ci`, затем `npm start` или запусти start-club.cmd. Панель эфира открывается на http://127.0.0.1:3001/?admin=1. После запуска TikTok LIVE в панели нажми «LIVE-ты қосу».
+Install Node.js 22 or newer. Open a terminal in this folder and run:
 
-OBS / LIVE Studio использует http://127.0.0.1:3001/?capture=1 как источник «Браузер» с размером 1080 × 1920.
+```sh
+npm install
+npm start
+```
 
-## Render
+1. Open [http://127.0.0.1:3000](http://127.0.0.1:3000). To preview offline, leave the username empty, open the overlay link for the demo room, and click any test gift in the control page.
+2. Start your TikTok LIVE in TikTok. Enter its username with or without @, then press **Қосылу / Подключиться**.
+3. Select a format and copy the overlay URL into an OBS Browser Source or a TikTok LIVE Studio link source. Use **1080 × 1920** for vertical, or **1920 × 1080** for horizontal. The horizontal URL uses `&mode=horizontal`. The overlay fits other viewport sizes proportionally.
+4. In OBS, right-click the browser source and choose **Interact**, then click **Дыбысты қосу / Включить звук** if shown. Enable **Control audio via OBS** to manage the source in the audio mixer. In LIVE Studio, use source interaction if available. If your source cannot receive clicks and blocks autoplay, open the overlay in a regular browser, enable sound there, and capture its audio and window.
 
-Создай Web Service с типом Node и подключи репозиторий. Команда сборки — `npm ci`, команда запуска — `npm start`. В переменных окружения задай `NODE_VERSION=24` и свой длинный случайный `ADMIN_KEY`. Render передаёт `PORT` автоматически.
+## Gifts, goal and region battle
 
-Панель открывается по адресу сайта с `/?admin=1`. В поле «Басқару кілті» введи значение `ADMIN_KEY`. Источник OBS открывается по адресу сайта с `/?capture=1`. TikTok подключается через неофициальную библиотеку tiktok-live-connector.
+Edit `gifts.json` and restart the server. Gift names match case-insensitively. A name match overrides the value tiers, which use the **per-gift** TikTok `diamondCount`. Galaxy is explicitly mapped to the cinematic effect by name. A completed streak scores its full quantity once. High-value animations go to the front of the waiting queue while the current animation finishes.
 
-[Инструкция Render](https://render.com/docs/deploy-node-express-app)
+The goal counts units of the gift name entered in the control panel. Team commands are `!almaty`, `!astana`, and `!shymkent`. Gifts made after choosing a team add their value times quantity to that team. The donor leaderboard uses the same scoring. Goal configuration and session statistics are kept in memory and reset when the app restarts. Test events are labelled and preview their own stats without adding to real results.
 
-## Демо
+## Optional settings
 
-Кнопка «Көрерменнің кіруін тексеру» проверяет появление зрителя и камеру; «Чатты тексеру» показывает сообщение над ним.
+Copy `.env.example` to `.env`. Set `PORT` to change the listener port. Set `SIGN_API_KEY` if your Euler Stream signing configuration requires it. By default the app binds to `127.0.0.1`. Use this local setup for OBS or LIVE Studio on the same computer. The control room has no authentication, so keep it on loopback or behind authenticated access.
 
-Открой `/?capture=1&demo=10&admin=1`. «Тәж» запускает баттл, два демо-пончика запускают парный вальс. После демо-подарка нажми «Чатты тексеру», чтобы увидеть реплику над персонажем. «Ғаламшар» и «10 000 лайк» запускают разные шоу.
+[TikTok LIVE Connector](https://github.com/zerodytrash/TikTok-Live-Connector) is unofficial and may break after TikTok updates. The server retries dropped connections, offline rooms and rate limits with capped exponential backoff. The control page displays the current connection state and retry timing.
 
-Иконки подарков загружены с CDN TikTok по [каталогу Lumia Stream](https://dev.lumiastream.com/docs/alerts/tiktok/alert-tiktok-gift).
+## Audio
 
-Шашу и общий танец: подарок стоимостью 5–9 монет. Вход и чат добавляют танцора без подарка на 60 секунд. При заполнении сцены новый зритель заменяет самого раннего участника, не занятого в парном танце. Команды қыз / woman и ұл / man выбирают аватар. Рендер ограничен 30 FPS и 10 персонажами.
+The WAV clips in `public/sounds` are original synthesized cues made for this project, including the plucked-string dombra-style cue. Use or replace them freely. If a file cannot be loaded, the overlay plays a generated Web Audio phrase after audio is enabled.
