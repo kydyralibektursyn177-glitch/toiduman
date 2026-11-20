@@ -1,6 +1,7 @@
 import 'dotenv/config';
 import express from 'express';
 import { createServer } from 'node:http';
+import { timingSafeEqual } from 'node:crypto';
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { Server } from 'socket.io';
@@ -8,11 +9,30 @@ import { TikTokLiveConnection, WebcastEvent } from 'tiktok-live-connector';
 import { Show, normalize, explainError } from './show.js';
 
 const config = JSON.parse(readFileSync(new URL('./gifts.json', import.meta.url)));
+const hosted = Boolean(process.env.PORT);
+const adminKey = process.env.ADMIN_KEY || '';
+if (hosted && adminKey.length < 16) throw new Error('Render: set ADMIN_KEY to a password of at least 16 characters in Environment.');
+const host = process.env.HOST || (hosted ? '0.0.0.0' : '127.0.0.1');
+if (host !== '127.0.0.1' && host !== 'localhost' && adminKey.length < 16) {
+  throw new Error('Public hosting requires ADMIN_KEY with at least 16 characters.');
+}
+function authorized(req) {
+  if (!adminKey) return true;
+  const expected = Buffer.from('Basic ' + Buffer.from('admin:' + adminKey).toString('base64'));
+  const supplied = Buffer.from(req.headers.authorization || '');
+  return supplied.length === expected.length && timingSafeEqual(supplied, expected);
+}
 const app = express();
+app.use((req, res, next) => {
+  if (authorized(req)) return next();
+  res.set('WWW-Authenticate', 'Basic realm="Qazaq Show", charset="UTF-8"');
+  res.status(401).send('Authentication required');
+});
 const server = createServer(app);
 const io = new Server(server, {
   maxHttpBufferSize: 16_384,
   allowRequest(req, done) {
+    if (!authorized(req)) return done(null, false);
     const origin = req.headers.origin;
     if (!origin) return done(null, true);
     try { done(null, new URL(origin).host === req.headers.host); }
@@ -135,5 +155,4 @@ io.on('connection', socket => {
 });
 
 const port = Number(process.env.PORT || 3000);
-const host = process.env.HOST || '127.0.0.1';
 server.listen(port, host, () => console.log('Қазақ Шоу • http://%s:%s', host, server.address().port));
